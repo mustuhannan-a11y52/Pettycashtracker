@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Petty Cash Tracker</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<style>
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);
+--bg:#f6f4ef;--card:#fff;--ink:#1d1b16;--mute:#7a756a;--line:#e6e1d6;--acc:#0f6b5c;--accsoft:#dff1ec;--bad:#b3392b;--ok:#0f6b5c}
+:root:not([data-theme="light"]){}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#15140f;--card:#201e18;--ink:#f1ede3;--mute:#9a9486;--line:#34312a;--acc:#4cc2a9;--accsoft:#1f3a34;--bad:#ef7d6e;--ok:#4cc2a9}}
+:root[data-theme="dark"]{--bg:#15140f;--card:#201e18;--ink:#f1ede3;--mute:#9a9486;--line:#34312a;--acc:#4cc2a9;--accsoft:#1f3a34;--bad:#ef7d6e;--ok:#4cc2a9}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+*,*:before,*:after{box-sizing:inherit}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:880px;margin:0 auto;padding:16px}
+h1{font:600 20px/1.2 Georgia,serif;margin:4px 0 14px}
+h2{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--mute);margin:22px 0 8px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px}
+.hero{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat small{display:block;color:var(--mute);font-size:12px}
+.stat b{font-size:20px}
+.tabs{display:flex;gap:6px;margin-bottom:10px}
+.tabs button{flex:1;padding:9px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;font:inherit;cursor:pointer}
+.tabs button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{font-size:12px;color:var(--mute);display:block;margin-bottom:3px}
+input,select{width:100%;padding:10px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);font:inherit}
+.full{grid-column:1/-1}
+.go{width:100%;padding:12px;border:0;border-radius:10px;background:var(--acc);color:#fff;font:600 15px inherit;cursor:pointer;margin-top:4px}
+.go:active{opacity:.85}
+.progs{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.prog b{display:block;font-size:18px;margin:2px 0}
+.bar{height:6px;border-radius:6px;background:var(--accsoft);margin:8px 0;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--acc)}
+.cats{font-size:12px;color:var(--mute)}
+.filters{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.filters select{flex:1;min-width:140px}
+.scroll{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--mute);text-align:left;padding:6px;border-bottom:1px solid var(--line)}
+td{padding:9px 6px;border-bottom:1px solid var(--line);vertical-align:top}
+td.amt{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.in{color:var(--ok)}
+.x{background:none;border:0;color:var(--mute);cursor:pointer;font-size:16px}
+.tag{display:inline-block;background:var(--accsoft);border-radius:6px;padding:1px 7px;font-size:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.ghost{padding:8px 12px;border:1px solid var(--line);background:transparent;color:var(--ink);border-radius:10px;font:inherit;cursor:pointer}
+textarea{width:100%;height:140px;border:1px solid var(--line);border-radius:10px;background:var(--bg);color:var(--ink);padding:8px;font:12px monospace;margin-top:8px}
+.nav{display:flex;gap:6px;margin:16px 0 4px;position:sticky;top:env(safe-area-inset-top,0px);background:var(--bg);padding:6px 0;z-index:5}
+.nav button{flex:1;padding:11px;border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:10px;font:600 14px inherit;cursor:pointer}
+.nav button.on{background:var(--acc);color:#fff;border-color:var(--acc)}
+.addrow{display:flex;gap:8px}.addrow input{flex:1}.addrow .go{width:auto;margin:0;padding:10px 18px}
+.pr{display:flex;align-items:center;gap:8px;padding:11px 0;border-bottom:1px solid var(--line)}
+.pr:last-child{border:0}.pr .n{flex:1}.pr .n b{display:block}.pr.arch .n{opacity:.5}
+.sm{padding:6px 10px;font-size:13px}.armed{background:var(--bad)!important;color:#fff!important;border-color:var(--bad)!important}
+#auth{display:none;position:fixed;inset:0;background:var(--bg);z-index:20;align-items:center;justify-content:center}#auth.show{display:flex}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(20px + env(safe-area-inset-bottom,0px));background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:14px;opacity:0;pointer-events:none;transition:opacity .2s;z-index:9;max-width:90%}
+#toast.on{opacity:1}
+.empty{color:var(--mute);padding:14px 0;text-align:center}
+.pill{display:flex;gap:6px;margin-top:8px}
+@media(max-width:520px){.hero{grid-template-columns:1fr}.stat{display:flex;justify-content:space-between;align-items:baseline}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>Petty Cash Tracker</h1>
+<div style="display:flex;align-items:center;gap:10px;margin:-8px 0 10px"><span class="cats" id="sync">Connecting…</span><button class="ghost sm" id="out" hidden>Sign out</button></div>
+
+<div class="hero">
+  <div class="card stat"><small>Cash received</small><b id="sIn">–</b></div>
+  <div class="card stat"><small>Spent</small><b id="sOut">–</b></div>
+  <div class="card stat"><small>Cash in hand</small><b id="sBal">–</b></div>
+</div>
+
+<div class="nav"><button id="nAdd" class="on">Add expense</button><button id="nProg">Programs</button><button id="nLed">Ledger</button></div>
+
+<section id="vAdd">
+<div class="card">
+  <div class="tabs"><button id="tExp" class="on">Expense</button><button id="tCash">Cash received</button></div>
+  <div class="grid" id="fExp">
+    <div class="full"><label>Program</label><select id="eProg"></select>
+      <div class="cats" id="noProg" hidden style="margin-top:6px">No programs yet. <a href="#" id="goProg" style="color:var(--acc)">Add your programs first →</a></div></div>
+    <div><label>Amount (₹)</label><input id="eAmt" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></div>
+    <div><label>Date</label><input id="eDate" type="date"></div>
+    <div><label>Category</label><input id="eCat" list="cats" placeholder="e.g. Food"><datalist id="cats"></datalist></div>
+    <div><label>Note / vendor</label><input id="eNote" placeholder="optional"></div>
+    <div class="full"><button class="go" id="addExp">Save expense</button></div>
+  </div>
+  <div class="grid" id="fCash" hidden>
+    <div><label>Amount (₹)</label><input id="cAmt" type="number" inputmode="decimal" min="0" step="any" placeholder="0"></div>
+    <div><label>Date received</label><input id="cDate" type="date"></div>
+    <div class="full"><label>Note</label><input id="cNote" placeholder="e.g. Week 40 petty cash"></div>
+    <div class="full"><button class="go" id="addCash">Save cash received</button></div>
+  </div>
+</div>
+</section>
+
+<section id="vProg" hidden>
+<div class="card">
+  <label>New program</label>
+  <div class="addrow"><input id="pName" placeholder="e.g. Infosys Offsite – Goa" maxlength="60"><button class="go" id="addProg">Add</button></div>
+  <div class="cats" style="margin-top:8px">Add programs at the start of the week, or any time. Archive a program when it's done and it disappears from the dropdown.</div>
+</div>
+<h2>Your programs</h2>
+<div class="card" id="plist"></div>
+<h2>Spend by category</h2>
+<div class="progs" id="progs"></div>
+</section>
+
+<section id="vLed" hidden>
+<div class="filters"><select id="fProg"></select><select id="fWeek"></select></div>
+<div class="card scroll"><table><thead><tr><th>Date</th><th>Program</th><th>Details</th><th style="text-align:right">Amount</th><th></th></tr></thead><tbody id="rows"></tbody></table>
+<div class="empty" id="empty" hidden>Nothing here yet.</div></div>
+<div class="row">
+  <button class="ghost" id="csv">Export CSV</button>
+  <button class="ghost" id="backup">Backup / restore</button>
+</div>
+<div id="io" hidden>
+  <textarea id="ta" spellcheck="false"></textarea>
+  <div class="row"><button class="ghost" id="restore">Restore from text above</button></div>
+</div>
+<p class="cats" style="margin-top:14px">Your data is saved to your account. Backup now and then is still a good habit.</p>
+</section>
+</div>
+<div id="auth"><div class="card" style="width:min(360px,92%)"><h1 style="margin-top:0">Petty Cash Tracker</h1>
+<label>Email</label><input id="aEmail" type="email" autocomplete="email">
+<label style="margin-top:8px">Password</label><input id="aPass" type="password" autocomplete="current-password">
+<button class="go" id="aIn">Sign in</button><button class="ghost" id="aUp" style="width:100%;margin-top:8px">Create account</button>
+<div class="cats" id="aMsg" style="margin-top:10px"></div></div></div>
+<div id="toast"></div>
+
+<script>
+var KEY='pettycash.v1',S={programs:[],archived:[],expenses:[],cash:[]};
+var CATS=['Food','Travel','Transport','Materials','Printing','Venue','Props','Staff','Misc'];
+try{var r=localStorage.getItem(KEY);if(r)S=JSON.parse(r)}catch(e){}
+if(!S.archived)S.archived=[];
+var tmr;function toast(m){var t=$('toast');t.textContent=m;t.className='on';clearTimeout(tmr);tmr=setTimeout(function(){t.className=''},2200)}
+function view(v){['Add','Prog','Led'].forEach(function(k){$('v'+k).hidden=k!==v;$('n'+k).className=k===v?'on':''})}
+var SUPABASE_URL='https://juiejicyemfohbysqucy.supabase.co',SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imp1aWVqaWN5ZW1mb2hieXNxdWN5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExMjY5NzQsImV4cCI6MjEwNjcwMjk3NH0.eAWztplF4kFi__nZgPTs2CqbU9BovQsCpmfi_FLnjnM';
+var sb=null,me=null,cloud={on:false,dirty:false,timer:null,last:''};
+function setStatus(t){var e=$('sync');if(e)e.textContent=t}
+function save(){var j=JSON.stringify(S);try{localStorage.setItem(KEY,j)}catch(e){}
+  if(cloud.on){cloud.dirty=true;setStatus('Saving…');clearTimeout(cloud.timer);cloud.timer=setTimeout(push,500)}}
+function push(){var j=JSON.stringify(S);
+  sb.from('tracker').upsert({user_id:me,state:JSON.parse(j),updated_at:new Date().toISOString()}).then(function(r){
+    if(r.error){cloud.dirty=false;setStatus('⚠ Cloud save failed: '+r.error.message);return}
+    cloud.last=j;if(JSON.stringify(S)===j)cloud.dirty=false;setStatus('✓ Saved to your account')})}
+function adopt(d){if(!d||!d.programs||!d.expenses)return;if(!d.archived)d.archived=[];if(!d.cash)d.cash=[];S=d;cloud.last=JSON.stringify(S);try{localStorage.setItem(KEY,cloud.last)}catch(e){}render()}
+function showAuth(msg){$('auth').className='show';$('aMsg').textContent=msg||'';$('out').hidden=true}
+async function start(user){
+  me=user.id;$('auth').className='';$('out').hidden=false;
+  var r=await sb.from('tracker').select('state').eq('user_id',me).maybeSingle();
+  if(r.error){setStatus('⚠ Could not load: '+r.error.message);return}
+  cloud.on=true;
+  if(r.data&&r.data.state&&r.data.state.programs){adopt(r.data.state);setStatus('✓ Loaded from your account')}
+  else if(S.programs.length||S.expenses.length||S.cash.length){push()}
+  else setStatus('✓ Signed in. Saving is on');
+}
+async function refresh(){
+  if(!cloud.on||cloud.dirty)return;
+  var r=await sb.from('tracker').select('state').eq('user_id',me).maybeSingle();
+  if(r.data&&r.data.state&&JSON.stringify(r.data.state)!==JSON.stringify(S))adopt(r.data.state)}
+async function initCloud(){
+  if(SUPABASE_URL.indexOf('PASTE')===0||!window.supabase){showAuth('Setup needed: add your Supabase URL and key at the top of the script in index.html.');return}
+  sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+  var r=await sb.auth.getSession();
+  if(r.data&&r.data.session)start(r.data.session.user);else showAuth('');
+  document.addEventListener('visibilitychange',function(){if(!document.hidden)refresh()});
+}
+async function doAuth(signup){
+  var em=$('aEmail').value.trim(),pw=$('aPass').value;
+  if(!em||pw.length<6){$('aMsg').textContent='Enter your email and a password of at least 6 characters.';return}
+  if(!sb){return}
+  $('aMsg').textContent='Please wait…';
+  var r=signup?await sb.auth.signUp({email:em,password:pw}):await sb.auth.signInWithPassword({email:em,password:pw});
+  if(r.error){$('aMsg').textContent=r.error.message;return}
+  if(r.data&&r.data.session)start(r.data.session.user);
+  else $('aMsg').textContent='Account created. Check your email to confirm, then sign in.';
+}
+$('aIn').onclick=function(){doAuth(false)};$('aUp').onclick=function(){doAuth(true)};
+$('aPass').onkeydown=function(e){if(e.key==='Enter')doAuth(false)};
+$('out').onclick=async function(){await sb.auth.signOut();cloud.on=false;S={programs:[],archived:[],expenses:[],cash:[]};try{localStorage.removeItem(KEY)}catch(e){}render();showAuth('Signed out.')};
+function $(i){return document.getElementById(i)}
+function fmt(n){return '₹'+Number(n||0).toLocaleString('en-IN',{maximumFractionDigits:2})}
+function today(){var d=new Date();d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function weekOf(s){var d=new Date(s+'T00:00:00');var k=(d.getDay()+6)%7;d.setDate(d.getDate()-k);d.setMinutes(d.getMinutes()-d.getTimezoneOffset());return d.toISOString().slice(0,10)}
+function esc(t){var d=document.createElement('div');d.textContent=t==null?'':t;return d.innerHTML}
+function uid(){return Date.now().toString(36)+Math.random().toString(36).slice(2,6)}
+function sum(a){return a.reduce(function(t,x){return t+x.amt},0)}
+
+function render(){
+  var out=sum(S.expenses),inn=sum(S.cash);
+  $('sIn').textContent=fmt(inn);$('sOut').textContent=fmt(out);
+  var b=$('sBal');b.textContent=fmt(inn-out);b.style.color=(inn-out)<0?'var(--bad)':'';
+  var act=S.programs.filter(function(p){return S.archived.indexOf(p)<0});
+  $('noProg').hidden=act.length>0;
+  var po='<option value="">Select program…</option>'+act.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>'}).join('');
+  var cur=$('eProg').value;$('eProg').innerHTML=po;$('eProg').value=cur;
+  var fp=$('fProg').value;$('fProg').innerHTML='<option value="">All programs</option>'+S.programs.map(function(p){return '<option value="'+esc(p)+'">'+esc(p)+'</option>'}).join('');$('fProg').value=fp;
+  var weeks={};S.expenses.concat(S.cash).forEach(function(x){weeks[weekOf(x.date)]=1});
+  var wl=Object.keys(weeks).sort().reverse(),fw=$('fWeek').value;
+  $('fWeek').innerHTML='<option value="">All weeks</option>'+wl.map(function(w){return '<option value="'+w+'">Week of '+w+'</option>'}).join('');$('fWeek').value=fw;
+  var used={};CATS.concat(S.expenses.map(function(e){return e.cat})).forEach(function(c){if(c)used[c]=1});
+  $('cats').innerHTML=Object.keys(used).map(function(c){return '<option value="'+esc(c)+'">'}).join('');
+
+  $('plist').innerHTML=S.programs.length?S.programs.map(function(p){
+    var ex=S.expenses.filter(function(e){return e.prog===p}),ar=S.archived.indexOf(p)>=0;
+    return '<div class="pr'+(ar?' arch':'')+'"><div class="n"><b>'+esc(p)+(ar?' (archived)':'')+'</b><span class="cats">'+ex.length+' expenses · '+fmt(sum(ex))+'</span></div>'
+     +'<button class="ghost sm" data-a="arch" data-p="'+esc(p)+'">'+(ar?'Restore':'Archive')+'</button>'
+     +'<button class="ghost sm" data-a="del" data-p="'+esc(p)+'">Delete</button></div>'}).join(''):'<div class="empty">No programs yet. Add your first one above.</div>';
+  // program cards
+  var ph='';
+  S.programs.forEach(function(p){
+    var ex=S.expenses.filter(function(e){return e.prog===p}),t=sum(ex),bc={};
+    ex.forEach(function(e){var c=e.cat||'Uncategorised';bc[c]=(bc[c]||0)+e.amt});
+    var top=Object.keys(bc).sort(function(a,b){return bc[b]-bc[a]});
+    ph+='<div class="card prog"><small class="cats">'+esc(p)+'</small><b>'+fmt(t)+'</b>'
+      +'<div class="bar"><i style="width:'+(out?Math.round(t/out*100):0)+'%"></i></div>'
+      +'<div class="cats">'+(top.length?top.slice(0,4).map(function(c){return esc(c)+' '+fmt(bc[c])}).join(' · '):'No expenses yet')+'</div></div>';
+  });
+  $('progs').innerHTML=ph||'<div class="empty">Nothing to show yet.</div>';
+
+  // ledger
+  var P=$('fProg').value,W=$('fWeek').value;
+  var items=S.expenses.map(function(e){return {t:'e',id:e.id,date:e.date,prog:e.prog,amt:e.amt,d:[e.cat,e.note]}})
+    .concat(S.cash.map(function(c){return {t:'c',id:c.id,date:c.date,prog:'',amt:c.amt,d:['Cash received',c.note]}}));
+  items=items.filter(function(i){return (!P||i.prog===P)&&(!W||weekOf(i.date)===W)&&!(P&&i.t==='c')});
+  items.sort(function(a,b){return a.date<b.date?1:-1});
+  $('rows').innerHTML=items.map(function(i){
+    var det=i.d.filter(Boolean).map(esc).join(' – ');
+    return '<tr><td>'+i.date.slice(5).split('-').reverse().join('/')+'</td><td>'+(i.prog?'<span class="tag">'+esc(i.prog)+'</span>':'')+'</td><td>'+det+'</td>'
+      +'<td class="amt '+(i.t==='c'?'in':'')+'">'+(i.t==='c'?'+':'')+fmt(i.amt)+'</td>'
+      +'<td><button class="x" data-t="'+i.t+'" data-id="'+i.id+'" title="Delete">✕</button></td></tr>'}).join('');
+  $('empty').hidden=items.length>0;
+  if(items.length){var tot=items.filter(function(i){return i.t==='e'});if(P||W)$('rows').insertAdjacentHTML('beforeend','<tr><td colspan="3"><b>Spent in this view</b></td><td class="amt"><b>'+fmt(sum(tot))+'</b></td><td></td></tr>')}
+}
+
+$('tExp').onclick=function(){$('tExp').className='on';$('tCash').className='';$('fExp').hidden=false;$('fCash').hidden=true};
+$('tCash').onclick=function(){$('tCash').className='on';$('tExp').className='';$('fCash').hidden=false;$('fExp').hidden=true};
+$('nAdd').onclick=function(){view('Add')};$('nProg').onclick=function(){view('Prog');$('pName').focus()};$('nLed').onclick=function(){view('Led')};
+$('goProg').onclick=function(e){e.preventDefault();view('Prog');$('pName').focus()};
+function addProg(){var n=$('pName').value.trim();if(!n){toast('Type a program name');return}
+  if(S.programs.some(function(p){return p.toLowerCase()===n.toLowerCase()})){toast('That program already exists');return}
+  S.programs.push(n);save();$('pName').value='';render();toast('Added “'+n+'”');$('pName').focus()}
+$('addProg').onclick=addProg;$('pName').onkeydown=function(e){if(e.key==='Enter')addProg()};
+function arm(b,label,fn){if(b.dataset.armed){fn();return}b.dataset.armed=1;var o=b.textContent;b.textContent=label;b.classList.add('armed');setTimeout(function(){if(b.isConnected){delete b.dataset.armed;b.textContent=o;b.classList.remove('armed')}},3000)}
+$('plist').onclick=function(e){var b=e.target.closest('button');if(!b)return;var p=b.dataset.p;
+  if(b.dataset.a==='arch'){var i=S.archived.indexOf(p);if(i<0)S.archived.push(p);else S.archived.splice(i,1);save();render()}
+  else if(b.dataset.a==='del'){
+    if(S.expenses.some(function(x){return x.prog===p})){toast('This program has expenses. Archive it instead.');return}
+    arm(b,'Tap again to delete',function(){S.programs=S.programs.filter(function(x){return x!==p});S.archived=S.archived.filter(function(x){return x!==p});save();render()})}};
+$('addExp').onclick=function(){
+  var p=$('eProg').value,a=parseFloat($('eAmt').value);
+  if(!p){toast('Pick a program first');return}
+  if(!(a>0)){toast('Enter an amount');return}
+  S.expenses.push({id:uid(),prog:p,amt:a,date:$('eDate').value||today(),cat:$('eCat').value.trim(),note:$('eNote').value.trim()});
+  save();$('eAmt').value='';$('eNote').value='';render();toast('Saved '+fmt(a)+' to '+p);$('eAmt').focus();
+};
+$('addCash').onclick=function(){
+  var a=parseFloat($('cAmt').value);if(!(a>0)){toast('Enter an amount');return}
+  S.cash.push({id:uid(),amt:a,date:$('cDate').value||today(),note:$('cNote').value.trim()});
+  save();$('cAmt').value='';$('cNote').value='';render();toast('Cash received saved');
+};
+$('rows').onclick=function(e){var b=e.target.closest('.x');if(!b)return;arm(b,'Sure?',function(){var k=b.dataset.t==='e'?'expenses':'cash';S[k]=S[k].filter(function(x){return x.id!==b.dataset.id});save();render()})};
+$('fProg').onchange=$('fWeek').onchange=render;
+function q(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+$('csv').onclick=function(){
+  var l=['Date,Type,Program,Category,Note,Amount'];
+  S.cash.forEach(function(c){l.push([c.date,'Cash received','','',c.note,c.amt].map(q).join(','))});
+  S.expenses.forEach(function(e){l.push([e.date,'Expense',e.prog,e.cat,e.note,e.amt].map(q).join(','))});
+  $('io').hidden=false;$('ta').value=l.join('\n');$('ta').select();
+  try{document.execCommand('copy')}catch(x){}
+};
+$('backup').onclick=function(){$('io').hidden=false;$('ta').value=JSON.stringify(S);$('ta').select()};
+$('restore').onclick=function(){try{var d=JSON.parse($('ta').value);if(!d.expenses||!d.programs)throw 0;if(!d.archived)d.archived=[];S=d;save();render();toast('Restored')}catch(x){toast('That text is not a valid backup')}};
+$('eDate').value=today();$('cDate').value=today();
+render();
+initCloud();
+</script>
+</body>
+</html>
